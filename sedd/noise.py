@@ -16,6 +16,25 @@ def tau_to_beta(tau: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     return 0.5 * torch.atanh(tau)
 
 
+def ell_to_tau(ell: torch.Tensor) -> torch.Tensor:
+    """Map log-SNR ell = log(tau^2 / (1 - tau^2)) to tau in (0, 1)."""
+    return torch.sqrt(torch.sigmoid(ell))
+
+
+def tau_to_ell(tau: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    """Map tau in (0, 1) to log-SNR ell = log(tau^2 / (1 - tau^2))."""
+    tau = tau.clamp(eps, 1.0 - eps)
+    return torch.logit(tau.square())
+
+
+def _convert_tau_to_level(tau: torch.Tensor, output_kind: str) -> torch.Tensor:
+    if output_kind == "tau":
+        return tau
+    if output_kind == "beta":
+        return tau_to_beta(tau)
+    raise ValueError("output_kind must be 'beta' or 'tau'")
+
+
 @dataclass(frozen=True)
 class UniformBetaSampler:
     beta_min: float
@@ -34,6 +53,66 @@ class UniformTauSampler:
     def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
         tau = torch.rand(batch_size, 1, device=device)
         return self.tau_min + (self.tau_max - self.tau_min) * tau
+
+
+@dataclass(frozen=True)
+class UniformEllSampler:
+    """Uniformly sample log-SNR ell and return beta or tau for the model."""
+
+    ell_min: float
+    ell_max: float
+    output_kind: str = "beta"
+
+    def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
+        ell = torch.rand(batch_size, 1, device=device)
+        ell = self.ell_min + (self.ell_max - self.ell_min) * ell
+        return _convert_tau_to_level(ell_to_tau(ell), self.output_kind)
+
+
+def make_level_sampler(
+    sample_kind: str,
+    sample_min: float,
+    sample_max: float,
+    output_kind: str,
+) -> UniformBetaSampler | UniformTauSampler | UniformEllSampler:
+    """Build a sampler for training levels.
+
+    output_kind controls what the model receives: beta or tau. sample_kind
+    controls the distribution used to draw the underlying noise scale.
+    """
+    if sample_kind == "beta":
+        if output_kind != "beta":
+            return _ConvertedBetaSampler(sample_min, sample_max, output_kind)
+        return UniformBetaSampler(sample_min, sample_max)
+    if sample_kind == "tau":
+        if output_kind != "tau":
+            return _ConvertedTauSampler(sample_min, sample_max, output_kind)
+        return UniformTauSampler(sample_min, sample_max)
+    if sample_kind == "ell":
+        return UniformEllSampler(sample_min, sample_max, output_kind=output_kind)
+    raise ValueError("sample_kind must be 'beta', 'tau', or 'ell'")
+
+
+@dataclass(frozen=True)
+class _ConvertedBetaSampler:
+    beta_min: float
+    beta_max: float
+    output_kind: str
+
+    def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
+        beta = UniformBetaSampler(self.beta_min, self.beta_max)(batch_size, device)
+        return _convert_tau_to_level(beta_to_tau(beta), self.output_kind)
+
+
+@dataclass(frozen=True)
+class _ConvertedTauSampler:
+    tau_min: float
+    tau_max: float
+    output_kind: str
+
+    def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
+        tau = UniformTauSampler(self.tau_min, self.tau_max)(batch_size, device)
+        return _convert_tau_to_level(tau, self.output_kind)
 
 
 def expand_level(level: torch.Tensor, like: torch.Tensor) -> torch.Tensor:

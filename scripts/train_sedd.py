@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sedd.data import SpinSnapshotDataset
 from sedd.models import DilatedConvNet
-from sedd.noise import UniformBetaSampler, UniformTauSampler
+from sedd.noise import make_level_sampler
 from sedd.training import save_checkpoint, train_epochs
 
 
@@ -28,6 +28,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--level-kind", choices=["beta", "tau"], default="beta")
     parser.add_argument("--level-min", type=float, default=0.05)
     parser.add_argument("--level-max", type=float, default=1.0)
+    parser.add_argument(
+        "--sample-kind",
+        choices=["beta", "tau", "ell"],
+        default=None,
+        help="Noise coordinate to sample uniformly. Defaults to --level-kind.",
+    )
+    parser.add_argument("--sample-min", type=float, default=None, help="Lower bound in --sample-kind units.")
+    parser.add_argument("--sample-max", type=float, default=None, help="Upper bound in --sample-kind units.")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
 
@@ -39,10 +47,14 @@ def main() -> None:
     length = dataset.snapshots.shape[1]
     model = DilatedConvNet(length=length, hidden_channels=args.hidden_channels, output_activation="none")
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    sampler = (
-        UniformBetaSampler(args.level_min, args.level_max)
-        if args.level_kind == "beta"
-        else UniformTauSampler(args.level_min, args.level_max)
+    sample_kind = args.sample_kind or args.level_kind
+    sample_min = args.level_min if args.sample_min is None else args.sample_min
+    sample_max = args.level_max if args.sample_max is None else args.sample_max
+    sampler = make_level_sampler(
+        sample_kind=sample_kind,
+        sample_min=sample_min,
+        sample_max=sample_max,
+        output_kind=args.level_kind,
     )
     train_epochs(
         model,
@@ -54,7 +66,12 @@ def main() -> None:
         objective="sedd",
         level_kind=args.level_kind,
     )
-    save_checkpoint(args.output, model, optimizer, vars(args) | {"length": length})
+    save_checkpoint(
+        args.output,
+        model,
+        optimizer,
+        vars(args) | {"length": length, "sample_kind": sample_kind, "sample_min": sample_min, "sample_max": sample_max},
+    )
     print(f"saved {args.output}")
 
 

@@ -11,6 +11,19 @@ python scripts/train_denoiser.py --snapshots snapshots/Ising_snapshotsL100.npy -
 
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
 
+By default, `--level-kind beta` samples beta uniformly in `[--level-min, --level-max]`, and `--level-kind tau` samples tau uniformly. To sample the noise scale uniformly in log-SNR,
+
+```bash
+python scripts/train_sedd.py \
+  --snapshots snapshots/Ising_snapshotsL100.npy \
+  --level-kind beta \
+  --sample-kind ell \
+  --sample-min -4 \
+  --sample-max 4
+```
+
+Here `ell = log(tau^2 / (1 - tau^2))`. The model still receives beta because `--level-kind beta`; only the training distribution over noise levels changes.
+
 ## Estimate one-point nonlinear observable
 
 ```bash

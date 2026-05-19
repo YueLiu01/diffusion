@@ -1,7 +1,7 @@
 import torch
 
 from sedd.models import DilatedConvNet
-from sedd.noise import beta_to_tau, corrupt_spins, sedd_target_ratio
+from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
 from sedd.training import denoiser_loss, sedd_loss
 from sedd.validation import empirical_noisy_log_ratios, empirical_posterior_mean
 
@@ -35,6 +35,15 @@ def test_beta_to_tau():
     tau = beta_to_tau(beta)
     assert tau[0].item() == 0.0
     assert 0.0 < tau[1].item() < 1.0
+
+
+def test_ell_sampler_round_trip_and_output_kind():
+    tau = torch.tensor([[0.2], [0.8]])
+    assert torch.allclose(ell_to_tau(tau_to_ell(tau)), tau, atol=1e-6)
+    sampler = make_level_sampler("ell", -2.0, 2.0, output_kind="tau")
+    levels = sampler(16)
+    assert levels.shape == (16, 1)
+    assert torch.all((levels > 0.0) & (levels < 1.0))
 
 
 def test_empirical_exact_validation_helpers():

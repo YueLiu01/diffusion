@@ -657,6 +657,24 @@ $$
 \tau_{\max}<1.
 $$
 
+### Uniform in log-SNR
+
+Define
+
+$$
+\ell=\log\frac{\tau^2}{1-\tau^2}.
+$$
+
+Then sample
+
+$$
+\ell\sim {\rm Uniform}(\ell_{\min},\ell_{\max}),
+\qquad
+\tau=\sqrt{\frac{1}{1+e^{-\ell}}}.
+$$
+
+This is often useful when training across a wide noise range because it allocates samples more evenly across signal-to-noise scales than uniform $\beta$ or uniform $\tau$.
+
 ---
 
 ## 14. Network architecture
