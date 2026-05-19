@@ -74,6 +74,16 @@ python scripts/compute_a1_sweep.py \
 This writes `runs/a1_sweep/a1_sweep.csv` and `runs/a1_sweep/a1_sweep.json`.
 Increase `--num-records`, `--num-posterior-samples`, `--steps`, and `--sweeps-per-step` for less noisy final estimates.
 
+To make a Fig. 3-style finite-size scaling plot from an A1 sweep:
+
+```bash
+python scripts/plot_fig3_scaling.py \
+  --input runs/a1_sweep/a1_sweep.csv \
+  --output runs/a1_sweep/fig3_scaling.png
+```
+
+By default this uses the Ising value `Delta=1/8` and keeps `beta <= 0.3`.
+
 ## Caveats and checks
 
 Endpoint cutoff:
