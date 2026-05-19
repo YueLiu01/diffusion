@@ -57,6 +57,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sample-min", type=float, default=None, help="Lower bound in --sample-kind units.")
     parser.add_argument("--sample-max", type=float, default=None, help="Upper bound in --sample-kind units.")
+    parser.add_argument(
+        "--z2-symmetrize-train",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="For SEDD, train the even score 0.5 * (u(x, level) + u(-x, level)). Ignored for denoiser.",
+    )
     parser.add_argument("--val-batches", type=int, default=None, help="Optional cap on validation batches per epoch.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=0)
@@ -166,6 +172,7 @@ def main() -> None:
             device=device,
             objective=args.objective,
             level_kind=args.level_kind,
+            z2_symmetrize_train=args.z2_symmetrize_train,
             val_batches=args.val_batches,
         )
 

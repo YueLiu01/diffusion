@@ -25,6 +25,7 @@ python scripts/train_lengths.py \
 This writes metrics to `runs/length_sweep/metrics/`, checkpoints to `runs/length_sweep/checkpoints/`, and `runs/length_sweep/plots/loss_curves.png`.
 
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
+For SEDD training, `--z2-symmetrize-train` is on by default and trains the even score `0.5 * (u(x, level) + u(-x, level))`. Use `--no-z2-symmetrize-train` only for diagnostics.
 
 By default, `--level-kind ell` samples diffusion time uniformly in `[--level-min, --level-max]` and feeds `ell` directly to the network. To be explicit:
 
@@ -109,6 +110,15 @@ u_sym = 0.5 * (model(x, ell) + model(-x, ell))
 ```
 
 This inference-time symmetrization means existing checkpoints can be reused; retraining is not required just to fix the small-beta A1 issue. Disable it only for diagnostics with `--no-z2-symmetrize`.
+New SEDD training also enables train-time Z2 symmetrization by default through `--z2-symmetrize-train`, so future checkpoints should satisfy the same even-score constraint during optimization as well as during A1 inference.
+
+To retrain and compare the suspicious `L=60` case across seeds:
+
+```bash
+python scripts/retrain_l60_z2_compare.py --device cuda
+```
+
+This trains seeds `0,1,2` into `runs/length_sweep_L60_z2_seeds/`, computes A1 into `runs/a1_L60_z2_seed_compare/`, and writes `a1_compare.csv` plus `a1_seed_summary.csv`.
 
 Runtime:
 The current SEDD posterior sampler loops over posterior samples, reverse steps, sweeps, and lattice sites. Runtime scales roughly linearly with `num_records`, `num_posterior_samples`, `steps`, `sweeps_per_step`, number of beta values, and length. Batching posterior samples is a future optimization.

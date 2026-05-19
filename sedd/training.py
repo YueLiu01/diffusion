@@ -19,6 +19,7 @@ def sedd_loss(
     logu_clip: float | None = 20.0,
     augment_z2: bool = True,
     augment_shift: bool = True,
+    z2_symmetrize_train: bool = True,
 ) -> torch.Tensor:
     """Compute the score-entropy loss for a clean snapshot minibatch."""
     tau = level_to_tau(level, level_kind)
@@ -30,6 +31,8 @@ def sedd_loss(
         z, x = random_cyclic_shift(z, x)
     target = sedd_target_ratio(x, z, tau, eps=eps)
     log_ratio = model(x, model_level)
+    if z2_symmetrize_train:
+        log_ratio = 0.5 * (log_ratio + model(-x, model_level))
     if logu_clip is not None:
         log_ratio = log_ratio.clamp(-logu_clip, logu_clip)
     return (torch.exp(log_ratio) - target * log_ratio).mean()
@@ -62,6 +65,7 @@ def objective_loss(
     level_kind: str = "ell",
     augment_z2: bool = True,
     augment_shift: bool = True,
+    z2_symmetrize_train: bool = True,
 ) -> torch.Tensor:
     if objective == "sedd":
         return sedd_loss(
@@ -71,6 +75,7 @@ def objective_loss(
             level_kind=level_kind,
             augment_z2=augment_z2,
             augment_shift=augment_shift,
+            z2_symmetrize_train=z2_symmetrize_train,
         )
     if objective == "denoiser":
         return denoiser_loss(
@@ -92,6 +97,7 @@ def evaluate_loss(
     device: torch.device,
     objective: str = "sedd",
     level_kind: str = "ell",
+    z2_symmetrize_train: bool = True,
     max_batches: int | None = None,
 ) -> float:
     """Evaluate stochastic validation loss on held-out clean snapshots."""
@@ -111,6 +117,7 @@ def evaluate_loss(
             level_kind=level_kind,
             augment_z2=False,
             augment_shift=False,
+            z2_symmetrize_train=z2_symmetrize_train,
         )
         batch_size = int(z.shape[0])
         total += float(loss.cpu()) * batch_size
@@ -129,6 +136,7 @@ def train_epochs(
     device: torch.device,
     objective: str = "sedd",
     level_kind: str = "ell",
+    z2_symmetrize_train: bool = True,
     grad_clip: float = 1.0,
     log_every: int = 50,
 ) -> list[float]:
@@ -141,7 +149,14 @@ def train_epochs(
         for z in loader:
             z = z.to(device=device, dtype=torch.float32)
             level = level_sampler(z.shape[0], device)
-            loss = objective_loss(model, z, level, objective=objective, level_kind=level_kind)
+            loss = objective_loss(
+                model,
+                z,
+                level,
+                objective=objective,
+                level_kind=level_kind,
+                z2_symmetrize_train=z2_symmetrize_train,
+            )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -164,6 +179,7 @@ def train_epochs_with_validation(
     device: torch.device,
     objective: str = "sedd",
     level_kind: str = "ell",
+    z2_symmetrize_train: bool = True,
     grad_clip: float = 1.0,
     val_batches: int | None = None,
 ) -> list[dict[str, float | int]]:
@@ -178,7 +194,14 @@ def train_epochs_with_validation(
         for z in train_loader:
             z = z.to(device=device, dtype=torch.float32)
             level = level_sampler(z.shape[0], device)
-            loss = objective_loss(model, z, level, objective=objective, level_kind=level_kind)
+            loss = objective_loss(
+                model,
+                z,
+                level,
+                objective=objective,
+                level_kind=level_kind,
+                z2_symmetrize_train=z2_symmetrize_train,
+            )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -198,6 +221,7 @@ def train_epochs_with_validation(
             device,
             objective=objective,
             level_kind=level_kind,
+            z2_symmetrize_train=z2_symmetrize_train,
             max_batches=val_batches,
         )
         row: dict[str, float | int] = {

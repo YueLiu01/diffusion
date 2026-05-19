@@ -41,6 +41,34 @@ def test_z2_symmetrized_score_is_even():
     assert torch.allclose(model(x, level), model(-x, level), atol=1e-6)
 
 
+def test_sedd_loss_can_symmetrize_score_during_training():
+    class RecordingModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.scale = torch.nn.Parameter(torch.tensor(0.1))
+            self.inputs = []
+
+        def forward(self, x, level):
+            self.inputs.append(x.detach().clone())
+            return self.scale * x
+
+    torch.manual_seed(0)
+    z = torch.sign(torch.randn(4, 6))
+    beta = torch.full((4, 1), 0.2)
+    model = RecordingModel()
+    loss = sedd_loss(
+        model,
+        z,
+        beta,
+        augment_z2=False,
+        augment_shift=False,
+        z2_symmetrize_train=True,
+    )
+    assert torch.isfinite(loss)
+    assert len(model.inputs) == 2
+    assert torch.equal(model.inputs[1], -model.inputs[0])
+
+
 def test_beta_to_tau():
     beta = torch.tensor([[0.0], [0.5]])
     tau = beta_to_tau(beta)
