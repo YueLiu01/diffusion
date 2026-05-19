@@ -74,6 +74,29 @@ python scripts/compute_a1_sweep.py \
 This writes `runs/a1_sweep/a1_sweep.csv` and `runs/a1_sweep/a1_sweep.json`.
 Increase `--num-records`, `--num-posterior-samples`, `--steps`, and `--sweeps-per-step` for less noisy final estimates.
 
+## Caveats and checks
+
+Endpoint cutoff:
+Do not use `--level-min 0` with `--level-kind ell`. Since `tau = exp(-2 ell)`, `ell = 0` gives the deterministic clean endpoint `tau = 1`, where the SEDD target sits on a singular/full-support boundary. Use a small positive cutoff such as `0.001` or `0.01`.
+
+Coordinate roles:
+Training uses `ell` as the neural-network input by default, but corruption, target construction, and posterior sampling are still defined by the physical binary-channel parameter `tau`. Converting between schedule coordinates is fine as long as the network is called with the level it was trained on, e.g. `model(x, ell)`.
+
+Reverse schedule:
+Different schedules in `tau`, `ell`, or other monotone coordinates can change sampler accuracy at fixed compute. The current sampler stores a `tau` schedule and converts to `ell` before calling an `ell`-conditioned model. Check convergence by comparing `--steps 32,64,96,128` on representative beta and length values.
+
+Posterior samples:
+`--num-posterior-samples M` means `M` reverse samples for each of two independent posterior-mean batches, so the SEDD `A1` estimator uses `2M` generated posterior samples per measurement record. `M=1` is only for smoke tests and is too noisy for `A1`. Use `M=8` for a first real sweep and increase to `16` or more for final selected points if runtime allows.
+
+Error bars:
+`compute_a1_sweep.py` reports `a1_stderr`, the standard error over measurement records, and `a1_std`, the sample standard deviation over records. These error bars do not fully capture systematic sampler bias from too few reverse steps, too few sweeps, or imperfect model ratios.
+
+Runtime:
+The current SEDD posterior sampler loops over posterior samples, reverse steps, sweeps, and lattice sites. Runtime scales roughly linearly with `num_records`, `num_posterior_samples`, `steps`, `sweeps_per_step`, number of beta values, and length. Batching posterior samples is a future optimization.
+
+Checkpoint loading:
+Older checkpoints may contain pickled `Path` objects in their config. Use `sedd.checkpoint.load_checkpoint` instead of raw `torch.load`; it handles the compatibility issue with newer PyTorch versions where `weights_only=True` is the default.
+
 ## Small-chain validation
 
 For small systems, `sedd.validation` can compute posterior means and noisy-distribution log ratios exactly under the empirical snapshot prior:
