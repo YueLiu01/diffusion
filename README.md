@@ -11,30 +11,32 @@ python scripts/train_denoiser.py --snapshots snapshots/Ising_snapshotsL100.npy -
 
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
 
-By default, `--level-kind beta` samples beta uniformly in `[--level-min, --level-max]`, and `--level-kind tau` samples tau uniformly. To sample the noise scale uniformly in log-SNR,
+By default, `--level-kind beta` samples beta uniformly in `[--level-min, --level-max]`, and `--level-kind tau` samples tau uniformly. To sample the noise scale uniformly in diffusion time `ell = -0.5 * log(tau)`,
 
 ```bash
 python scripts/train_sedd.py \
   --snapshots snapshots/Ising_snapshotsL100.npy \
   --level-kind beta \
   --sample-kind ell \
-  --sample-min -4 \
-  --sample-max 4
+  --sample-min 0.01 \
+  --sample-max 2.0
 ```
 
-Here `ell = log(tau^2 / (1 - tau^2))`. The model still receives beta because `--level-kind beta`; only the training distribution over noise levels changes.
+Equivalently, `ell = -0.5 * log(tanh(2 * beta))`. The model still receives beta because `--level-kind beta`; only the training distribution over noise levels changes. Use `sample-min > 0` to avoid the singular `tau = 1` endpoint.
 
 Some reference values for this convention:
 
-| `ell` | `tau = sqrt(sigmoid(ell))` | `beta = 0.5 * atanh(tau)` |
+| `ell` | `tau = exp(-2 * ell)` | `beta = 0.5 * atanh(tau)` |
 |---:|---:|---:|
-| -6 | 0.049725 | 0.024883 |
-| -4 | 0.134113 | 0.067463 |
-| -2 | 0.345258 | 0.180025 |
-| 0 | 0.707107 | 0.440687 |
-| 2 | 0.938508 | 0.862691 |
-| 4 | 0.990966 | 1.348847 |
-| 6 | 0.998763 | 1.846883 |
+| 0.001 | 0.998002 | 1.726939 |
+| 0.01 | 0.980199 | 1.151301 |
+| 0.05 | 0.904837 | 0.749141 |
+| 0.1 | 0.818731 | 0.576478 |
+| 0.25 | 0.606531 | 0.351707 |
+| 0.5 | 0.367879 | 0.192984 |
+| 1.0 | 0.135335 | 0.068085 |
+| 1.5 | 0.049787 | 0.024914 |
+| 2.0 | 0.018316 | 0.009159 |
 
 ## Estimate one-point nonlinear observable
 

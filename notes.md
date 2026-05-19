@@ -657,12 +657,13 @@ can produce singular target ratios. Use cutoffs such as
 \tau_{\max}<1.
 ```
 
-### Uniform in log-SNR
+### Uniform in diffusion time
 
 Define
 
 ```math
-\ell=\log\frac{\tau^2}{1-\tau^2}.
+\ell=-\frac12\log\tau
+=-\frac12\log\tanh(2\beta).
 ```
 
 Then sample
@@ -670,10 +671,12 @@ Then sample
 ```math
 \ell\sim \operatorname{Uniform}(\ell_{\min},\ell_{\max}),
 \qquad
-\tau=\sqrt{\frac{1}{1+e^{-\ell}}}.
+\tau=e^{-2\ell},
+\qquad
+\beta=\frac12\operatorname{atanh}(e^{-2\ell}).
 ```
 
-This is often useful when training across a wide noise range because it allocates samples more evenly across signal-to-noise scales than uniform $\beta$ or uniform $\tau$.
+This is often useful when training across a wide noise range because it samples logarithmically in $\tau$. Use $\ell_{\min}>0$ to avoid the singular $\tau=1$ endpoint.
 
 ---
 

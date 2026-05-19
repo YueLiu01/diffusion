@@ -40,7 +40,7 @@ def test_beta_to_tau():
 def test_ell_sampler_round_trip_and_output_kind():
     tau = torch.tensor([[0.2], [0.8]])
     assert torch.allclose(ell_to_tau(tau_to_ell(tau)), tau, atol=1e-6)
-    sampler = make_level_sampler("ell", -2.0, 2.0, output_kind="tau")
+    sampler = make_level_sampler("ell", 0.01, 2.0, output_kind="tau")
     levels = sampler(16)
     assert levels.shape == (16, 1)
     assert torch.all((levels > 0.0) & (levels < 1.0))

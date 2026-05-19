@@ -17,14 +17,14 @@ def tau_to_beta(tau: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
 
 
 def ell_to_tau(ell: torch.Tensor) -> torch.Tensor:
-    """Map log-SNR ell = log(tau^2 / (1 - tau^2)) to tau in (0, 1)."""
-    return torch.sqrt(torch.sigmoid(ell))
+    """Map diffusion time ell = -0.5 log(tau) to tau."""
+    return torch.exp(-2.0 * ell)
 
 
 def tau_to_ell(tau: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
-    """Map tau in (0, 1) to log-SNR ell = log(tau^2 / (1 - tau^2))."""
+    """Map tau in (0, 1] to diffusion time ell = -0.5 log(tau)."""
     tau = tau.clamp(eps, 1.0 - eps)
-    return torch.logit(tau.square())
+    return -0.5 * torch.log(tau)
 
 
 def _convert_tau_to_level(tau: torch.Tensor, output_kind: str) -> torch.Tensor:
@@ -57,11 +57,17 @@ class UniformTauSampler:
 
 @dataclass(frozen=True)
 class UniformEllSampler:
-    """Uniformly sample log-SNR ell and return beta or tau for the model."""
+    """Uniformly sample diffusion time ell and return beta or tau for the model."""
 
     ell_min: float
     ell_max: float
     output_kind: str = "beta"
+
+    def __post_init__(self) -> None:
+        if self.ell_min < 0.0:
+            raise ValueError("ell_min must be nonnegative because tau = exp(-2 ell)")
+        if self.ell_max <= self.ell_min:
+            raise ValueError("ell_max must be greater than ell_min")
 
     def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
         ell = torch.rand(batch_size, 1, device=device)
