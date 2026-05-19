@@ -99,3 +99,14 @@ class DilatedConvNet(nn.Module):
         if self.output_activation == "none":
             return y
         raise ValueError(f"Unknown output activation {self.output_activation!r}")
+
+
+class Z2SymmetrizedScore(nn.Module):
+    """Enforce global spin-flip invariance for SEDD log-ratio scores."""
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x: torch.Tensor, level: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (self.model(x, level) + self.model(-x, level))

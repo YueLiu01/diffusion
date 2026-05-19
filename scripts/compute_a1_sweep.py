@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sedd.checkpoint import load_checkpoint
 from sedd.data import load_ising_snapshots
-from sedd.models import DilatedConvNet
+from sedd.models import DilatedConvNet, Z2SymmetrizedScore
 from sedd.observables import records_from_clean
 from sedd.sampling import posterior_mean_from_sampler
 
@@ -44,12 +44,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-posterior-samples", type=int, default=2)
     parser.add_argument("--steps", type=int, default=16)
     parser.add_argument("--sweeps-per-step", type=int, default=1)
+    parser.add_argument(
+        "--z2-symmetrize",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="For SEDD checkpoints, enforce global spin-flip invariance of the log-ratio score at inference.",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
 
 
-def load_model(checkpoint_path: Path, kind: str, device: torch.device) -> tuple[DilatedConvNet, dict]:
+def load_model(checkpoint_path: Path, kind: str, device: torch.device, z2_symmetrize: bool) -> tuple[torch.nn.Module, dict]:
     checkpoint = load_checkpoint(checkpoint_path, map_location=device)
     config = checkpoint["config"]
     length = int(config["length"])
@@ -61,6 +67,9 @@ def load_model(checkpoint_path: Path, kind: str, device: torch.device) -> tuple[
     ).to(device)
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
+    if kind == "sedd" and z2_symmetrize:
+        model = Z2SymmetrizedScore(model).to(device)
+        model.eval()
     return model, config
 
 
@@ -80,6 +89,7 @@ def write_rows(path: Path, rows: list[dict[str, float | int | str]]) -> None:
         "steps",
         "sweeps_per_step",
         "model_level",
+        "z2_symmetrize",
     ]
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -165,7 +175,7 @@ def main() -> None:
         if not snapshot_path.exists():
             raise FileNotFoundError(f"Missing snapshots for L={length}: {snapshot_path}")
 
-        model, config = load_model(checkpoint_path, args.kind, device)
+        model, config = load_model(checkpoint_path, args.kind, device, args.z2_symmetrize)
         model_level = str(config.get("level_kind", "ell"))
         z = load_ising_snapshots(snapshot_path, max_samples=args.num_records).to(device)
 
@@ -199,6 +209,7 @@ def main() -> None:
                 "steps": args.steps,
                 "sweeps_per_step": args.sweeps_per_step,
                 "model_level": model_level,
+                "z2_symmetrize": bool(args.z2_symmetrize and args.kind == "sedd"),
             }
             rows.append(row)
             print(

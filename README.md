@@ -91,6 +91,9 @@ Posterior samples:
 Error bars:
 `compute_a1_sweep.py` reports `a1_stderr`, the standard error over measurement records, and `a1_std`, the sample standard deviation over records. These error bars do not fully capture systematic sampler bias from too few reverse steps, too few sweeps, or imperfect model ratios.
 
+Z2 score symmetry:
+For the spin-flip-symmetric Ising data, the SEDD log-ratio score should obey `u(x, ell) = u(-x, ell)`. The CNN is trained with spin-flip augmentation but does not enforce this exactly. SEDD A1 scripts therefore symmetrize scores at inference by default using `(model(x, ell) + model(-x, ell)) / 2`. Disable only for diagnostics with `--no-z2-symmetrize`.
+
 Runtime:
 The current SEDD posterior sampler loops over posterior samples, reverse steps, sweeps, and lattice sites. Runtime scales roughly linearly with `num_records`, `num_posterior_samples`, `steps`, `sweeps_per_step`, number of beta values, and length. Batching posterior samples is a future optimization.
 

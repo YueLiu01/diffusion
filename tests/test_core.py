@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from sedd.checkpoint import load_checkpoint, save_checkpoint
-from sedd.models import DilatedConvNet
+from sedd.models import DilatedConvNet, Z2SymmetrizedScore
 from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, level_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
 from sedd.training import denoiser_loss, sedd_loss, train_epochs_with_validation
 from sedd.validation import empirical_noisy_log_ratios, empirical_posterior_mean
@@ -30,6 +30,15 @@ def test_model_and_losses_have_expected_shapes():
     denoiser = DilatedConvNet(length=10, hidden_channels=8, level_embedding_dim=8, output_activation="tanh")
     mse = denoiser_loss(denoiser, z, beta, augment_z2=False, augment_shift=False)
     assert torch.isfinite(mse)
+
+
+def test_z2_symmetrized_score_is_even():
+    torch.manual_seed(0)
+    x = torch.sign(torch.randn(3, 8))
+    level = torch.full((3, 1), 0.2)
+    base = DilatedConvNet(length=8, hidden_channels=8, level_embedding_dim=8)
+    model = Z2SymmetrizedScore(base)
+    assert torch.allclose(model(x, level), model(-x, level), atol=1e-6)
 
 
 def test_beta_to_tau():
