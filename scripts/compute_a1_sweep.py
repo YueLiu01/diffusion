@@ -14,7 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sedd.checkpoint import load_checkpoint
 from sedd.data import load_ising_snapshots
 from sedd.models import DilatedConvNet
-from sedd.observables import a1_from_denoiser, a1_from_sedd_sampler, records_from_clean
+from sedd.observables import records_from_clean
+from sedd.sampling import posterior_mean_from_sampler
 
 
 DEFAULT_BETAS = (0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
@@ -70,6 +71,8 @@ def write_rows(path: Path, rows: list[dict[str, float | int | str]]) -> None:
         "beta",
         "tau",
         "a1",
+        "a1_stderr",
+        "a1_std",
         "kind",
         "checkpoint",
         "num_records",
@@ -82,6 +85,68 @@ def write_rows(path: Path, rows: list[dict[str, float | int | str]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+@torch.no_grad()
+def denoiser_a1_stats(model: DilatedConvNet, s: torch.Tensor, level: torch.Tensor) -> tuple[float, float, float]:
+    means = model(s, level)
+    per_record = torch.mean(means.square(), dim=1)
+    return summarize(per_record)
+
+
+@torch.no_grad()
+def sedd_a1_stats(
+    model: DilatedConvNet,
+    s: torch.Tensor,
+    num_samples: int,
+    beta: float,
+    model_level: str,
+    steps: int,
+    sweeps_per_step: int,
+) -> tuple[float, float, float]:
+    mean1 = posterior_mean_from_sampler(
+        model,
+        s,
+        num_samples,
+        beta0=beta,
+        steps=steps,
+        sweeps_per_step=sweeps_per_step,
+        model_level=model_level,
+    )
+    mean2 = posterior_mean_from_sampler(
+        model,
+        s,
+        num_samples,
+        beta0=beta,
+        steps=steps,
+        sweeps_per_step=sweeps_per_step,
+        model_level=model_level,
+    )
+    per_record = torch.mean(mean1 * mean2, dim=1)
+    return summarize(per_record)
+
+
+def summarize(per_record: torch.Tensor) -> tuple[float, float, float]:
+    values = per_record.detach().float().cpu()
+    mean = float(values.mean())
+    if values.numel() <= 1:
+        return mean, 0.0, 0.0
+    std = float(values.std(unbiased=True))
+    stderr = std / float(values.numel() ** 0.5)
+    return mean, stderr, std
+
+
+def model_level_tensor(model_level: str, beta: float, batch_size: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    tau = torch.tanh(torch.tensor(2.0 * beta, device=device, dtype=dtype))
+    if model_level == "beta":
+        value = torch.tensor(beta, device=device, dtype=dtype)
+    elif model_level == "tau":
+        value = tau
+    elif model_level == "ell":
+        value = -0.5 * torch.log(tau.clamp(max=1.0 - 1e-6))
+    else:
+        raise ValueError("model_level must be 'beta', 'tau', or 'ell'")
+    return value.expand(batch_size, 1)
 
 
 def main() -> None:
@@ -107,16 +172,17 @@ def main() -> None:
         for beta in betas:
             s = records_from_clean(z, beta=beta)
             if args.kind == "denoiser":
-                a1 = a1_from_denoiser(model, s, beta=beta, model_level=model_level)
+                level = model_level_tensor(model_level, beta, s.shape[0], device, s.dtype)
+                a1, a1_stderr, a1_std = denoiser_a1_stats(model, s, level)
             else:
-                a1 = a1_from_sedd_sampler(
+                a1, a1_stderr, a1_std = sedd_a1_stats(
                     model,
                     s,
-                    num_samples=args.num_posterior_samples,
-                    beta0=beta,
-                    steps=args.steps,
-                    sweeps_per_step=args.sweeps_per_step,
-                    model_level=model_level,
+                    args.num_posterior_samples,
+                    beta,
+                    model_level,
+                    args.steps,
+                    args.sweeps_per_step,
                 )
             tau = float(torch.tanh(torch.tensor(2.0 * beta)).item())
             row: dict[str, float | int | str] = {
@@ -124,6 +190,8 @@ def main() -> None:
                 "beta": beta,
                 "tau": tau,
                 "a1": a1,
+                "a1_stderr": a1_stderr,
+                "a1_std": a1_std,
                 "kind": args.kind,
                 "checkpoint": str(checkpoint_path),
                 "num_records": int(z.shape[0]),
@@ -133,7 +201,11 @@ def main() -> None:
                 "model_level": model_level,
             }
             rows.append(row)
-            print(f"L={length} beta={beta:g} tau={tau:.6f} A1={a1:.8f}", flush=True)
+            print(
+                f"L={length} beta={beta:g} tau={tau:.6f} "
+                f"A1={a1:.8f} stderr={a1_stderr:.8f}",
+                flush=True,
+            )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     write_rows(args.output_dir / "a1_sweep.csv", rows)
