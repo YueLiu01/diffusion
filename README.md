@@ -24,6 +24,18 @@ python scripts/train_sedd.py \
 
 Here `ell = log(tau^2 / (1 - tau^2))`. The model still receives beta because `--level-kind beta`; only the training distribution over noise levels changes.
 
+Some reference values for this convention:
+
+| `ell` | `tau = sqrt(sigmoid(ell))` | `beta = 0.5 * atanh(tau)` |
+|---:|---:|---:|
+| -6 | 0.049725 | 0.024883 |
+| -4 | 0.134113 | 0.067463 |
+| -2 | 0.345258 | 0.180025 |
+| 0 | 0.707107 | 0.440687 |
+| 2 | 0.938508 | 0.862691 |
+| 4 | 0.990966 | 1.348847 |
+| 6 | 0.998763 | 1.846883 |
+
 ## Estimate one-point nonlinear observable
 
 ```bash

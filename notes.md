@@ -6,11 +6,11 @@ This note specifies the correct Score-Entropy Discrete Diffusion (SEDD) formulat
 
 The key principle is:
 
-$$
+```math
 \boxed{
 \text{The clean snapshot } z \text{ is used to generate training targets, but it is not an input to the score network.}
 }
-$$
+```
 
 The score network takes only the corrupted/noisy configuration and the noise level.
 
@@ -20,9 +20,9 @@ The score network takes only the corrupted/noisy configuration and the noise lev
 
 We consider spin configurations
 
-$$
+```math
 z,x,s\in\{\pm1\}^L .
-$$
+```
 
 The meanings are:
 
@@ -37,9 +37,9 @@ The meanings are:
 
 The clean data distribution is
 
-$$
+```math
 z\sim p_0(z),
-$$
+```
 
 where $p_0(z)$ is the projective snapshot distribution of the initial state, for example the critical TFIM ground state in the $Z$-basis.
 
@@ -49,50 +49,50 @@ where $p_0(z)$ is the projective snapshot distribution of the initial state, for
 
 For diagonal site-independent weak measurements, the weak record is generated from the clean snapshot through a binary channel:
 
-$$
+```math
 q_\beta(s|z)
 =
 \prod_{i=1}^L
 \frac{1+\tau s_i z_i}{2},
 \qquad
 \tau=\tanh(2\beta).
-$$
+```
 
 Equivalently,
 
-$$
+```math
 s_i=z_i\eta_i,
-$$
+```
 
 where
 
-$$
+```math
 \Pr(\eta_i=+1)=\frac{1+\tau}{2},
 \qquad
 \Pr(\eta_i=-1)=\frac{1-\tau}{2}.
-$$
+```
 
 Thus the bit-flip probability is
 
-$$
-p_{\rm flip}(\beta)
+```math
+p_{\mathrm{flip}}(\beta)
 =
 \frac{1-\tanh(2\beta)}{2}.
-$$
+```
 
 The limits are:
 
-$$
+```math
 \beta=0 \Longleftrightarrow \tau=0:
 \quad
 s \text{ is pure noise},
-$$
+```
 
-$$
+```math
 \beta\to\infty \Longleftrightarrow \tau\to1:
 \quad
 s=z.
-$$
+```
 
 Thus $\beta$ is an inverse noise scale, while $\tau$ is a signal-to-noise parameter.
 
@@ -102,37 +102,37 @@ Thus $\beta$ is an inverse noise scale, while $\tau$ is a signal-to-noise parame
 
 For a given noise level $\tau$, define the noisy marginal distribution
 
-$$
+```math
 p_\tau(x)
 =
 \sum_z p_0(z)q_\tau(x|z),
-$$
+```
 
 where
 
-$$
+```math
 q_\tau(x|z)
 =
 \prod_i \frac{1+\tau x_i z_i}{2}.
-$$
+```
 
 The SEDD score network learns local probability ratios of this noisy distribution:
 
-$$
+```math
 R_i^\star(x,\tau)
 =
 \frac{p_\tau(F_i x)}{p_\tau(x)}.
-$$
+```
 
 Equivalently, the network predicts log-ratios
 
-$$
+```math
 u_{\theta,i}(x,\tau)
 \approx
 \log R_i^\star(x,\tau)
 =
 \log \frac{p_\tau(F_i x)}{p_\tau(x)}.
-$$
+```
 
 The network output has shape $[B,L]$, one log-ratio per site.
 
@@ -142,19 +142,19 @@ The network output has shape $[B,L]$, one log-ratio per site.
 
 The score network input is
 
-$$
+```math
 \boxed{
 (x,\tau)
 }
-$$
+```
 
 or equivalently
 
-$$
+```math
 \boxed{
 (x,\beta)
 }
-$$
+```
 
 where $x$ is the current noisy/corrupted spin configuration.
 
@@ -180,38 +180,38 @@ The clean snapshot $z$ appears only in the training loss because it is needed to
 
 For a training pair
 
-$$
+```math
 z\sim p_0(z),
 \qquad
 x\sim q_\tau(x|z),
-$$
+```
 
 the known single-site forward-channel ratio is
 
-$$
+```math
 a_i(x,z;\tau)
 =
 \frac{q_\tau(F_i x|z)}{q_\tau(x|z)}.
-$$
+```
 
 For the independent binary channel,
 
-$$
+```math
 a_i(x,z;\tau)
 =
 \frac{1-\tau x_i z_i}{1+\tau x_i z_i}.
-$$
+```
 
 In terms of measurement strength $\beta$,
 
-$$
+```math
 a_i(x,z;\beta)
 =
 \frac{1-\tanh(2\beta)x_i z_i}
      {1+\tanh(2\beta)x_i z_i}
 =
 e^{-4\beta x_i z_i}.
-$$
+```
 
 This target uses the clean $z$, but $z$ is not fed into the score network.
 
@@ -221,16 +221,16 @@ This target uses the clean $z$, but $z$ is not fed into the score network.
 
 Let
 
-$$
+```math
 R_{\theta,i}(x,\tau)=e^{u_{\theta,i}(x,\tau)}.
-$$
+```
 
 The SEDD score-entropy loss is
 
-$$
-\mathcal L_{\rm SEDD}(\theta)
+```math
+\mathcal L_{\mathrm{SEDD}}(\theta)
 =
-\mathbb E_{z,\tau,x}
+\mathbb{E}_{z,\tau,x}
 \left[
 \frac1L\sum_{i=1}^L
 \left(
@@ -239,27 +239,27 @@ e^{u_{\theta,i}(x,\tau)}
 a_i(x,z;\tau)u_{\theta,i}(x,\tau)
 \right)
 \right],
-$$
+```
 
 where
 
-$$
+```math
 z\sim p_0(z),
 \qquad
 \tau\sim \rho(\tau),
 \qquad
 x\sim q_\tau(x|z).
-$$
+```
 
 At the optimum,
 
-$$
+```math
 e^{u_{\theta,i}(x,\tau)}
 =
-\mathbb E[a_i(x,z;\tau)|x,\tau]
+\mathbb{E}[a_i(x,z;\tau)|x,\tau]
 =
 \frac{p_\tau(F_i x)}{p_\tau(x)}.
-$$
+```
 
 Therefore the trained network learns the local probability ratio of the noisy distribution.
 
@@ -269,38 +269,38 @@ Therefore the trained network learns the local probability ratio of the noisy di
 
 For fixed $(x,\tau)$, the loss contribution for site $i$ is
 
-$$
-\mathbb E\left[
+```math
+\mathbb{E}\left[
 R_i-a_i\log R_i
 \mid x,\tau
 \right],
-$$
+```
 
 where
 
-$$
+```math
 R_i=R_{\theta,i}(x,\tau).
-$$
+```
 
 Differentiating with respect to $R_i$ gives
 
-$$
-1-\frac{\mathbb E[a_i|x,\tau]}{R_i}=0.
-$$
+```math
+1-\frac{\mathbb{E}[a_i|x,\tau]}{R_i}=0.
+```
 
 Thus
 
-$$
+```math
 R_i^\star(x,\tau)
 =
-\mathbb E[a_i(x,z;\tau)|x,\tau].
-$$
+\mathbb{E}[a_i(x,z;\tau)|x,\tau].
+```
 
 Now,
 
-$$
+```math
 \begin{aligned}
-\mathbb E[a_i|x,\tau]
+\mathbb{E}[a_i|x,\tau]
 &=
 \sum_z p(z|x,\tau)
 \frac{q_\tau(F_i x|z)}{q_\tau(x|z)}
@@ -317,7 +317,7 @@ $$
 &=
 \frac{p_\tau(F_i x)}{p_\tau(x)}.
 \end{aligned}
-$$
+```
 
 This is the SEDD denoising trick: the true noisy-distribution ratio is unknown, but the conditional corruption ratio is known and gives the correct target after averaging over clean data.
 
@@ -329,38 +329,38 @@ At each optimization step:
 
 1. Sample a minibatch of clean snapshots
 
-   $$
+   ```math
    z\sim p_0(z).
-   $$
+   ```
 
 2. Sample noise levels $\tau$ or $\beta$.
 
 3. Generate noisy configurations
 
-   $$
+   ```math
    x\sim q_\tau(x|z).
-   $$
+   ```
 
 4. Compute the known target ratios
 
-   $$
+   ```math
    a_i(x,z;\tau)
    =
    \frac{1-\tau x_i z_i}{1+\tau x_i z_i}.
-   $$
+   ```
 
 5. Feed only $(x,\tau)$ into the network.
 
 6. Minimize
 
-   $$
+   ```math
    \frac1L\sum_i
    \left[
    e^{u_{\theta,i}(x,\tau)}
    -
    a_i(x,z;\tau)u_{\theta,i}(x,\tau)
    \right].
-   $$
+   ```
 
 ---
 
@@ -437,43 +437,43 @@ u = model(z, x, beta)
 
 After training, the network provides ratios
 
-$$
+```math
 R_{\theta,i}(x,\tau)
 =
 \exp u_{\theta,i}(x,\tau)
 \approx
 \frac{p_\tau(F_i x)}{p_\tau(x)}.
-$$
+```
 
 To generate clean samples from noise, use the learned ratios to run the reverse discrete diffusion process from a smaller-$\tau$ noisy distribution toward $\tau=1$.
 
 For measurement-altered criticality at a particular measurement strength $\beta_0$, define
 
-$$
+```math
 \tau_0=\tanh(2\beta_0).
-$$
+```
 
 Given an observed or synthetically generated weak record
 
-$$
+```math
 s\sim p_{\tau_0}(s),
-$$
+```
 
 initialize
 
-$$
+```math
 x_{\tau_0}=s.
-$$
+```
 
 Then run the reverse denoising dynamics from $\tau_0$ to $\tau=1$, using the learned ratios at the current state $x$ and current noise level $\tau$. The final state is an approximate sample from
 
-$$
+```math
 p(z|s,\tau_0).
-$$
+```
 
 Schematically,
 
-$$
+```math
 x_{\tau_0}=s
 \longrightarrow
 x_{\tau_1}
@@ -481,13 +481,13 @@ x_{\tau_1}
 \cdots
 \longrightarrow
 x_{\tau=1}\approx z.
-$$
+```
 
 The score network is evaluated as
 
-$$
+```math
 u_\theta(x,\tau),
-$$
+```
 
 where $x$ is the current reverse-diffusion state.
 
@@ -497,60 +497,60 @@ where $x$ is the current reverse-diffusion state.
 
 For a fixed weak record $s$ at noise level $\tau_0$, generate posterior samples
 
-$$
+```math
 z^{(1)},\ldots,z^{(M)}
 \sim
 p_\theta(z|s,\tau_0).
-$$
+```
 
 Estimate the posterior one-point function by
 
-$$
+```math
 \widehat m_i(s;\tau_0)
 =
 \frac1M\sum_{a=1}^M z_i^{(a)}.
-$$
+```
 
 Then estimate
 
-$$
+```math
 A_1(\tau_0)
 =
 \frac1L\sum_i
-\mathbb E_{s\sim p_{\tau_0}}
+\mathbb{E}_{s\sim p_{\tau_0}}
 \left[
 m_i(s;\tau_0)^2
 \right]
-$$
+```
 
 using
 
-$$
+```math
 \widehat A_1(\tau_0)
 =
 \frac{1}{N_sL}
 \sum_{\alpha=1}^{N_s}
 \sum_{i=1}^L
 \widehat m_i(s_\alpha;\tau_0)^2.
-$$
+```
 
 For finite $M$, $\widehat m_i^2$ has an upward Monte Carlo bias. A safer estimator uses two independent posterior sample batches:
 
-$$
+```math
 \widehat m_i^{(1)}(s)
 =
 \frac1M\sum_{a=1}^M z_{i,1}^{(a)},
-$$
+```
 
-$$
+```math
 \widehat m_i^{(2)}(s)
 =
 \frac1M\sum_{a=1}^M z_{i,2}^{(a)}.
-$$
+```
 
 Then use
 
-$$
+```math
 \widehat A_1(\tau_0)
 =
 \frac{1}{N_sL}
@@ -558,18 +558,18 @@ $$
 \sum_i
 \widehat m_i^{(1)}(s_\alpha)
 \widehat m_i^{(2)}(s_\alpha).
-$$
+```
 
 The same logic applies to two-point or general $Z$-diagonal observables $O(z)$:
 
-$$
+```math
 A_O(\tau_0)
 =
-\mathbb E_s
+\mathbb{E}_s
 \left[
-\mathbb E[O(z)|s,\tau_0]^2
+\mathbb{E}[O(z)|s,\tau_0]^2
 \right].
-$$
+```
 
 ---
 
@@ -577,25 +577,25 @@ $$
 
 For estimating only one-point functions, a simpler baseline is a direct posterior-mean denoiser
 
-$$
+```math
 f_\phi(x,\tau)_i
 \approx
-\mathbb E[z_i|x,\tau].
-$$
+\mathbb{E}[z_i|x,\tau].
+```
 
 Train it with mean-square loss:
 
-$$
-\mathcal L_{\rm MSE}
+```math
+\mathcal L_{\mathrm{MSE}}
 =
-\mathbb E_{z,\tau,x}
+\mathbb{E}_{z,\tau,x}
 \left[
 \frac1L\sum_i
 \left(
 f_{\phi,i}(x,\tau)-z_i
 \right)^2
 \right].
-$$
+```
 
 Again, the input is only $(x,\tau)$, while $z$ is the target.
 
@@ -611,67 +611,67 @@ Possible choices:
 
 ### Uniform in $\tau$
 
-$$
-\tau\sim {\rm Uniform}(\tau_{\min},\tau_{\max}).
-$$
+```math
+\tau\sim \operatorname{Uniform}(\tau_{\min},\tau_{\max}).
+```
 
 ### Uniform in $\beta$
 
-$$
-\beta\sim {\rm Uniform}(\beta_{\min},\beta_{\max}),
+```math
+\beta\sim \operatorname{Uniform}(\beta_{\min},\beta_{\max}),
 \qquad
 \tau=\tanh(2\beta).
-$$
+```
 
 ### Uniform in diffusion time
 
 Define
 
-$$
+```math
 \tau=e^{-2\gamma t},
-$$
+```
 
 and sample
 
-$$
-t\sim{\rm Uniform}(t_{\min},t_{\max}).
-$$
+```math
+t\sim \operatorname{Uniform}(t_{\min},t_{\max}).
+```
 
 Avoid exact endpoints:
 
-$$
+```math
 \tau=0
-$$
+```
 
 is the pure-noise limit, and
 
-$$
+```math
 \tau=1
-$$
+```
 
 can produce singular target ratios. Use cutoffs such as
 
-$$
+```math
 \tau_{\min}>0,
 \qquad
 \tau_{\max}<1.
-$$
+```
 
 ### Uniform in log-SNR
 
 Define
 
-$$
+```math
 \ell=\log\frac{\tau^2}{1-\tau^2}.
-$$
+```
 
 Then sample
 
-$$
-\ell\sim {\rm Uniform}(\ell_{\min},\ell_{\max}),
+```math
+\ell\sim \operatorname{Uniform}(\ell_{\min},\ell_{\max}),
 \qquad
 \tau=\sqrt{\frac{1}{1+e^{-\ell}}}.
-$$
+```
 
 This is often useful when training across a wide noise range because it allocates samples more evenly across signal-to-noise scales than uniform $\beta$ or uniform $\tau$.
 
@@ -681,15 +681,15 @@ This is often useful when training across a wide noise range because it allocate
 
 The model should implement
 
-$$
-u_\theta(x,\tau):\{\pm1\}^L\times\mathbb R\to\mathbb R^L.
-$$
+```math
+u_\theta(x,\tau):\{\pm1\}^L\times\mathbb{R}\to\mathbb{R}^L.
+```
 
 Recommended inputs per site:
 
-$$
+```math
 x_i
-$$
+```
 
 plus a global noise embedding of $\tau$, $\beta$, or $\log\tau$.
 
@@ -717,15 +717,15 @@ For translation-invariant systems, the architecture should share weights across 
 
 For the TFIM order-parameter snapshot distribution without longitudinal field, the clean distribution is invariant under global spin flip:
 
-$$
+```math
 z\to -z.
-$$
+```
 
 The noisy channel respects
 
-$$
+```math
 (z,x)\to(-z,-x).
-$$
+```
 
 Use global spin-flip augmentation:
 
@@ -737,11 +737,11 @@ if torch.rand(()) < 0.5:
 
 For periodic boundary conditions, also use cyclic shifts:
 
-$$
+```math
 z_i\to z_{i+\ell},
 \qquad
 x_i\to x_{i+\ell}.
-$$
+```
 
 ---
 
@@ -767,12 +767,12 @@ The clean $z$ may appear only in the loss construction.
 
 For small $L$, enumerate all $z$ and compute
 
-$$
+```math
 p(z|x,\tau)
 =
 \frac{p_0(z)q_\tau(x|z)}
      {\sum_{z'}p_0(z')q_\tau(x|z')}.
-$$
+```
 
 Compare posterior means and correlations from the sampler against exact values.
 
@@ -780,17 +780,17 @@ Compare posterior means and correlations from the sampler against exact values.
 
 For any observable $O(z)$,
 
-$$
-\mathbb E_s
+```math
+\mathbb{E}_s
 \left[
-\mathbb E[O|s]^2
+\mathbb{E}[O|s]^2
 \right]
 =
-\mathbb E_{z,s}
+\mathbb{E}_{z,s}
 \left[
-O(z)\mathbb E[O|s]
+O(z)\mathbb{E}[O|s]
 \right].
-$$
+```
 
 Use held-out $(z,s)$ pairs to check this identity with model estimates.
 
@@ -822,9 +822,9 @@ u = model(x, tau)
 
 At $\tau=0$, $x$ is uniform. At finite $\tau$, $x$ must be generated by corrupting clean snapshots:
 
-$$
+```math
 x\sim q_\tau(x|z).
-$$
+```
 
 ### Mistake 3: Using one fixed corrupted copy per clean snapshot
 
@@ -838,9 +838,9 @@ A model trained only on a limited interval of $\tau$ should not be trusted far o
 
 For
 
-$$
-\mathbb E_s[\mathbb E[O|s]^2],
-$$
+```math
+\mathbb{E}_s[\mathbb{E}[O|s]^2],
+```
 
 use independent posterior batches or bias correction when estimating the square.
 
@@ -853,17 +853,17 @@ use independent posterior batches or bias correction when estimating the square.
 3. Generate noisy $x\sim q_\tau(x|z)$ on the fly.
 4. Compute
 
-   $$
+   ```math
    a_i=(1-\tau x_i z_i)/(1+\tau x_i z_i).
-   $$
+   ```
 
 5. Feed only $(x,\tau)$ or $(x,\beta)$ to the model.
 6. Output $u_{\theta,i}$ for all sites.
 7. Train with
 
-   $$
+   ```math
    \exp(u_{\theta,i})-a_i u_{\theta,i}.
-   $$
+   ```
 
 8. Use learned ratios to run reverse discrete diffusion.
 9. Estimate posterior observables from generated samples.
@@ -875,34 +875,34 @@ use independent posterior batches or bias correction when estimating the square.
 
 The correct SEDD analogy is exactly the same as image or language diffusion:
 
-$$
+```math
 \text{clean data } z
 \longrightarrow
 \text{corrupted data } x.
-$$
+```
 
 The score network sees only the corrupted data and the noise level:
 
-$$
+```math
 \boxed{
 u_\theta = u_\theta(x,\tau).
 }
-$$
+```
 
 The clean data $z$ is used only to compute the denoising target in the loss:
 
-$$
+```math
 \boxed{
 a_i(x,z;\tau)
 =
 \frac{q_\tau(F_i x|z)}{q_\tau(x|z)}.
 }
-$$
+```
 
 For diagonal weak measurements, the weak record $s$ at strength $\beta$ is one instance of such a corrupted configuration, with
 
-$$
+```math
 \tau=\tanh(2\beta).
-$$
+```
 
 Thus, for measurement-altered criticality, train SEDD on synthetic corruptions of clean projective snapshots and use reverse denoising from the observed weak record to sample the posterior clean configuration.
