@@ -110,3 +110,14 @@ class Z2SymmetrizedScore(nn.Module):
 
     def forward(self, x: torch.Tensor, level: torch.Tensor) -> torch.Tensor:
         return 0.5 * (self.model(x, level) + self.model(-x, level))
+
+
+class Z2AntisymmetrizedDenoiser(nn.Module):
+    """Enforce global spin-flip oddness for posterior-mean denoisers."""
+
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x: torch.Tensor, level: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (self.model(x, level) - self.model(-x, level))

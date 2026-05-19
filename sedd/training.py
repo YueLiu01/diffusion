@@ -45,6 +45,7 @@ def denoiser_loss(
     level_kind: str = "ell",
     augment_z2: bool = True,
     augment_shift: bool = True,
+    z2_antisymmetrize_train: bool = True,
 ) -> torch.Tensor:
     """MSE loss for f_phi(x, level) ~= E[z | x, level]."""
     tau = level_to_tau(level, level_kind)
@@ -54,6 +55,8 @@ def denoiser_loss(
     if augment_shift:
         z, x = random_cyclic_shift(z, x)
     pred = model(x, level)
+    if z2_antisymmetrize_train:
+        pred = 0.5 * (pred - model(-x, level))
     return torch.mean((pred - z) ** 2)
 
 
@@ -66,6 +69,7 @@ def objective_loss(
     augment_z2: bool = True,
     augment_shift: bool = True,
     z2_symmetrize_train: bool = True,
+    z2_antisymmetrize_train: bool = True,
 ) -> torch.Tensor:
     if objective == "sedd":
         return sedd_loss(
@@ -85,6 +89,7 @@ def objective_loss(
             level_kind=level_kind,
             augment_z2=augment_z2,
             augment_shift=augment_shift,
+            z2_antisymmetrize_train=z2_antisymmetrize_train,
         )
     raise ValueError("objective must be 'sedd' or 'denoiser'")
 
@@ -98,6 +103,7 @@ def evaluate_loss(
     objective: str = "sedd",
     level_kind: str = "ell",
     z2_symmetrize_train: bool = True,
+    z2_antisymmetrize_train: bool = True,
     max_batches: int | None = None,
 ) -> float:
     """Evaluate stochastic validation loss on held-out clean snapshots."""
@@ -118,6 +124,7 @@ def evaluate_loss(
             augment_z2=False,
             augment_shift=False,
             z2_symmetrize_train=z2_symmetrize_train,
+            z2_antisymmetrize_train=z2_antisymmetrize_train,
         )
         batch_size = int(z.shape[0])
         total += float(loss.cpu()) * batch_size
@@ -137,6 +144,7 @@ def train_epochs(
     objective: str = "sedd",
     level_kind: str = "ell",
     z2_symmetrize_train: bool = True,
+    z2_antisymmetrize_train: bool = True,
     grad_clip: float = 1.0,
     log_every: int = 50,
 ) -> list[float]:
@@ -156,6 +164,7 @@ def train_epochs(
                 objective=objective,
                 level_kind=level_kind,
                 z2_symmetrize_train=z2_symmetrize_train,
+                z2_antisymmetrize_train=z2_antisymmetrize_train,
             )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -180,6 +189,7 @@ def train_epochs_with_validation(
     objective: str = "sedd",
     level_kind: str = "ell",
     z2_symmetrize_train: bool = True,
+    z2_antisymmetrize_train: bool = True,
     grad_clip: float = 1.0,
     val_batches: int | None = None,
 ) -> list[dict[str, float | int]]:
@@ -201,6 +211,7 @@ def train_epochs_with_validation(
                 objective=objective,
                 level_kind=level_kind,
                 z2_symmetrize_train=z2_symmetrize_train,
+                z2_antisymmetrize_train=z2_antisymmetrize_train,
             )
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -222,6 +233,7 @@ def train_epochs_with_validation(
             objective=objective,
             level_kind=level_kind,
             z2_symmetrize_train=z2_symmetrize_train,
+            z2_antisymmetrize_train=z2_antisymmetrize_train,
             max_batches=val_batches,
         )
         row: dict[str, float | int] = {

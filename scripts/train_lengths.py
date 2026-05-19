@@ -63,6 +63,12 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="For SEDD, train the even score 0.5 * (u(x, level) + u(-x, level)). Ignored for denoiser.",
     )
+    parser.add_argument(
+        "--z2-antisymmetrize-train",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="For denoiser, train the odd posterior mean 0.5 * (f(x, level) - f(-x, level)). Ignored for SEDD.",
+    )
     parser.add_argument("--val-batches", type=int, default=None, help="Optional cap on validation batches per epoch.")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--num-workers", type=int, default=0)
@@ -173,6 +179,7 @@ def main() -> None:
             objective=args.objective,
             level_kind=args.level_kind,
             z2_symmetrize_train=args.z2_symmetrize_train,
+            z2_antisymmetrize_train=args.z2_antisymmetrize_train,
             val_batches=args.val_batches,
         )
 

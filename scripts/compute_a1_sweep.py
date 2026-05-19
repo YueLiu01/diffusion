@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sedd.checkpoint import load_checkpoint
 from sedd.data import load_ising_snapshots
-from sedd.models import DilatedConvNet, Z2SymmetrizedScore
+from sedd.models import DilatedConvNet, Z2AntisymmetrizedDenoiser, Z2SymmetrizedScore
 from sedd.observables import records_from_clean
 from sedd.sampling import posterior_mean_from_sampler
 
@@ -50,12 +50,24 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="For SEDD checkpoints, enforce global spin-flip invariance of the log-ratio score at inference.",
     )
+    parser.add_argument(
+        "--z2-antisymmetrize",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="For denoiser checkpoints, enforce global spin-flip oddness of the posterior mean at inference.",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
 
 
-def load_model(checkpoint_path: Path, kind: str, device: torch.device, z2_symmetrize: bool) -> tuple[torch.nn.Module, dict]:
+def load_model(
+    checkpoint_path: Path,
+    kind: str,
+    device: torch.device,
+    z2_symmetrize: bool,
+    z2_antisymmetrize: bool,
+) -> tuple[torch.nn.Module, dict]:
     checkpoint = load_checkpoint(checkpoint_path, map_location=device)
     config = checkpoint["config"]
     length = int(config["length"])
@@ -69,6 +81,9 @@ def load_model(checkpoint_path: Path, kind: str, device: torch.device, z2_symmet
     model.eval()
     if kind == "sedd" and z2_symmetrize:
         model = Z2SymmetrizedScore(model).to(device)
+        model.eval()
+    if kind == "denoiser" and z2_antisymmetrize:
+        model = Z2AntisymmetrizedDenoiser(model).to(device)
         model.eval()
     return model, config
 
@@ -90,6 +105,7 @@ def write_rows(path: Path, rows: list[dict[str, float | int | str]]) -> None:
         "sweeps_per_step",
         "model_level",
         "z2_symmetrize",
+        "z2_antisymmetrize",
     ]
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -175,7 +191,7 @@ def main() -> None:
         if not snapshot_path.exists():
             raise FileNotFoundError(f"Missing snapshots for L={length}: {snapshot_path}")
 
-        model, config = load_model(checkpoint_path, args.kind, device, args.z2_symmetrize)
+        model, config = load_model(checkpoint_path, args.kind, device, args.z2_symmetrize, args.z2_antisymmetrize)
         model_level = str(config.get("level_kind", "ell"))
         z = load_ising_snapshots(snapshot_path, max_samples=args.num_records).to(device)
 
@@ -210,6 +226,7 @@ def main() -> None:
                 "sweeps_per_step": args.sweeps_per_step,
                 "model_level": model_level,
                 "z2_symmetrize": bool(args.z2_symmetrize and args.kind == "sedd"),
+                "z2_antisymmetrize": bool(args.z2_antisymmetrize and args.kind == "denoiser"),
             }
             rows.append(row)
             print(

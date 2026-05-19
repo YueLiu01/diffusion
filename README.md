@@ -26,6 +26,7 @@ This writes metrics to `runs/length_sweep/metrics/`, checkpoints to `runs/length
 
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
 For SEDD training, `--z2-symmetrize-train` is on by default and trains the even score `0.5 * (u(x, level) + u(-x, level))`. Use `--no-z2-symmetrize-train` only for diagnostics.
+For denoising-diffusion training, use `--objective denoiser`; `--z2-antisymmetrize-train` is on by default and trains the odd posterior mean `0.5 * (f(x, level) - f(-x, level))`.
 
 By default, `--level-kind ell` samples diffusion time uniformly in `[--level-min, --level-max]` and feeds `ell` directly to the network. To be explicit:
 
@@ -84,6 +85,25 @@ python scripts/plot_fig3_scaling.py \
 ```
 
 By default this uses the Ising value `Delta=1/8` and keeps `beta <= 0.3`.
+
+## Denoising diffusion workflow
+
+To bypass SEDD ratio sampling and train the noise-conditioned posterior-mean model directly:
+
+```bash
+python scripts/train_denoising_diffusion_sweep.py --device cuda
+```
+
+This trains `denoiser_L{L}.pt` checkpoints, computes A1 directly from `f_theta(s, beta)^2`, and writes:
+
+```text
+runs/denoising_diffusion_length_sweep/metrics/losses_all.csv
+runs/denoising_diffusion_length_sweep/plots/loss_curves.png
+runs/denoising_diffusion_a1_sweep/a1_sweep.csv
+runs/denoising_diffusion_a1_sweep/fig3_scaling.png
+```
+
+This path is closer to image-diffusion `x0` prediction: the model is trained to denoise corrupted snapshots at random noise levels, but A1 evaluation does not use reverse MCMC.
 
 ## Caveats and checks
 

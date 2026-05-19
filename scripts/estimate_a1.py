@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sedd.checkpoint import load_checkpoint
 from sedd.data import load_ising_snapshots
-from sedd.models import DilatedConvNet, Z2SymmetrizedScore
+from sedd.models import DilatedConvNet, Z2AntisymmetrizedDenoiser, Z2SymmetrizedScore
 from sedd.observables import a1_from_denoiser, a1_from_sedd_sampler, records_from_clean
 
 
@@ -30,6 +30,12 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="For SEDD checkpoints, enforce global spin-flip invariance of the log-ratio score at inference.",
+    )
+    parser.add_argument(
+        "--z2-antisymmetrize",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="For denoiser checkpoints, enforce global spin-flip oddness of the posterior mean at inference.",
     )
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
@@ -51,6 +57,9 @@ def main() -> None:
     model.eval()
     if args.kind == "sedd" and args.z2_symmetrize:
         model = Z2SymmetrizedScore(model).to(device)
+        model.eval()
+    if args.kind == "denoiser" and args.z2_antisymmetrize:
+        model = Z2AntisymmetrizedDenoiser(model).to(device)
         model.eval()
 
     z = load_ising_snapshots(args.snapshots, max_samples=args.num_records).to(device)

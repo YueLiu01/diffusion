@@ -36,6 +36,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--sample-min", type=float, default=None, help="Lower bound in --sample-kind units.")
     parser.add_argument("--sample-max", type=float, default=None, help="Upper bound in --sample-kind units.")
+    parser.add_argument(
+        "--z2-antisymmetrize-train",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Train the odd posterior mean 0.5 * (f(x, level) - f(-x, level)).",
+    )
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     return parser.parse_args()
 
@@ -65,6 +71,7 @@ def main() -> None:
         device=torch.device(args.device),
         objective="denoiser",
         level_kind=args.level_kind,
+        z2_antisymmetrize_train=args.z2_antisymmetrize_train,
     )
     save_checkpoint(
         args.output,
