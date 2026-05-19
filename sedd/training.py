@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from .checkpoint import save_checkpoint
 from .noise import corrupt_spins, level_to_tau, random_cyclic_shift, random_global_flip, sedd_target_ratio
 
 
@@ -208,15 +208,3 @@ def train_epochs_with_validation(
         }
         history.append(row)
     return history
-
-
-def save_checkpoint(path: str | Path, model: nn.Module, optimizer: torch.optim.Optimizer, config: dict) -> None:
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "model_state": model.state_dict(),
-            "optimizer_state": optimizer.state_dict(),
-            "config": config,
-        },
-        path,
-    )

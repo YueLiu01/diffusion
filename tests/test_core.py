@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 
+from sedd.checkpoint import load_checkpoint, save_checkpoint
 from sedd.models import DilatedConvNet
 from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, level_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
 from sedd.training import denoiser_loss, sedd_loss, train_epochs_with_validation
@@ -86,3 +87,12 @@ def test_train_epochs_with_validation_returns_epoch_metrics():
     assert history[0]["train_steps"] == 3
     assert torch.isfinite(torch.tensor(history[0]["train_loss"]))
     assert torch.isfinite(torch.tensor(history[0]["val_loss"]))
+
+
+def test_checkpoint_sanitizes_path_config(tmp_path):
+    model = DilatedConvNet(length=4, hidden_channels=4, level_embedding_dim=8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    path = tmp_path / "checkpoint.pt"
+    save_checkpoint(path, model, optimizer, {"output": tmp_path})
+    checkpoint = load_checkpoint(path, map_location="cpu")
+    assert checkpoint["config"]["output"] == str(tmp_path)

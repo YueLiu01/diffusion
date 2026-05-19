@@ -62,6 +62,18 @@ python scripts/estimate_a1.py --kind sedd --checkpoint checkpoints/sedd_L100.pt 
 
 The SEDD estimator uses two independent posterior sample batches to avoid directly squaring a noisy Monte Carlo posterior mean.
 
+To compute `A1(beta)` for the length-sweep checkpoints and the default beta grid `0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6`:
+
+```bash
+python scripts/compute_a1_sweep.py \
+  --checkpoints-dir runs/length_sweep/checkpoints \
+  --snapshots-dir snapshots \
+  --output-dir runs/a1_sweep
+```
+
+This writes `runs/a1_sweep/a1_sweep.csv` and `runs/a1_sweep/a1_sweep.json`.
+Increase `--num-records`, `--num-posterior-samples`, `--steps`, and `--sweeps-per-step` for less noisy final estimates.
+
 ## Small-chain validation
 
 For small systems, `sedd.validation` can compute posterior means and noisy-distribution log ratios exactly under the empirical snapshot prior:

@@ -9,6 +9,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sedd.checkpoint import load_checkpoint
 from sedd.data import load_ising_snapshots
 from sedd.models import DilatedConvNet
 from sedd.observables import a1_from_denoiser, a1_from_sedd_sampler, records_from_clean
@@ -31,7 +32,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     device = torch.device(args.device)
-    checkpoint = torch.load(args.checkpoint, map_location=device)
+    checkpoint = load_checkpoint(args.checkpoint, map_location=device)
     config = checkpoint["config"]
     length = int(config["length"])
     output_activation = "tanh" if args.kind == "denoiser" else "none"
