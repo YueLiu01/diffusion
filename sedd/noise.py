@@ -27,12 +27,25 @@ def tau_to_ell(tau: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     return -0.5 * torch.log(tau)
 
 
+def level_to_tau(level: torch.Tensor, level_kind: str) -> torch.Tensor:
+    """Convert a model conditioning level to tau."""
+    if level_kind == "tau":
+        return level
+    if level_kind == "beta":
+        return beta_to_tau(level)
+    if level_kind == "ell":
+        return ell_to_tau(level)
+    raise ValueError("level_kind must be 'beta', 'tau', or 'ell'")
+
+
 def _convert_tau_to_level(tau: torch.Tensor, output_kind: str) -> torch.Tensor:
     if output_kind == "tau":
         return tau
     if output_kind == "beta":
         return tau_to_beta(tau)
-    raise ValueError("output_kind must be 'beta' or 'tau'")
+    if output_kind == "ell":
+        return tau_to_ell(tau)
+    raise ValueError("output_kind must be 'beta', 'tau', or 'ell'")
 
 
 @dataclass(frozen=True)
@@ -57,21 +70,23 @@ class UniformTauSampler:
 
 @dataclass(frozen=True)
 class UniformEllSampler:
-    """Uniformly sample diffusion time ell and return beta or tau for the model."""
+    """Uniformly sample diffusion time ell and return beta, tau, or ell for the model."""
 
     ell_min: float
     ell_max: float
     output_kind: str = "beta"
 
     def __post_init__(self) -> None:
-        if self.ell_min < 0.0:
-            raise ValueError("ell_min must be nonnegative because tau = exp(-2 ell)")
+        if self.ell_min <= 0.0:
+            raise ValueError("ell_min must be positive to avoid the singular tau = 1 endpoint")
         if self.ell_max <= self.ell_min:
             raise ValueError("ell_max must be greater than ell_min")
 
     def __call__(self, batch_size: int, device: torch.device | None = None) -> torch.Tensor:
         ell = torch.rand(batch_size, 1, device=device)
         ell = self.ell_min + (self.ell_max - self.ell_min) * ell
+        if self.output_kind == "ell":
+            return ell
         return _convert_tau_to_level(ell_to_tau(ell), self.output_kind)
 
 
@@ -83,7 +98,7 @@ def make_level_sampler(
 ) -> UniformBetaSampler | UniformTauSampler | UniformEllSampler:
     """Build a sampler for training levels.
 
-    output_kind controls what the model receives: beta or tau. sample_kind
+    output_kind controls what the model receives: beta, tau, or ell. sample_kind
     controls the distribution used to draw the underlying noise scale.
     """
     if sample_kind == "beta":

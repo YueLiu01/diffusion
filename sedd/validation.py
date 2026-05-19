@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from .noise import beta_to_tau, corrupt_spins, expand_level
+from .noise import beta_to_tau, corrupt_spins, expand_level, tau_to_ell
 
 
 def empirical_prior(z: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -66,7 +66,7 @@ def one_point_calibration(
     model: nn.Module,
     clean_snapshots: torch.Tensor,
     beta: float,
-    model_level: str = "beta",
+    model_level: str = "ell",
     max_samples: int | None = None,
 ) -> tuple[float, float]:
     """Check E_s[m_i(s)^2] = E_{z,s}[z_i m_i(s)] for a posterior-mean model."""
@@ -74,7 +74,14 @@ def one_point_calibration(
     level = torch.full((z.shape[0], 1), beta, device=z.device, dtype=z.dtype)
     tau = beta_to_tau(level)
     s = corrupt_spins(z, tau)
-    model_input_level = level if model_level == "beta" else tau
+    if model_level == "beta":
+        model_input_level = level
+    elif model_level == "tau":
+        model_input_level = tau
+    elif model_level == "ell":
+        model_input_level = tau_to_ell(tau)
+    else:
+        raise ValueError("model_level must be 'beta', 'tau', or 'ell'")
     means = model(s, model_input_level)
     left = torch.mean(means**2)
     right = torch.mean(z * means)

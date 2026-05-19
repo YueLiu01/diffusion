@@ -46,7 +46,7 @@ def main() -> None:
     z = load_ising_snapshots(args.snapshots, max_samples=args.num_records).to(device)
     s = records_from_clean(z, beta=args.beta)
     if args.kind == "denoiser":
-        value = a1_from_denoiser(model, s, beta=args.beta, model_level=config.get("level_kind", "beta"))
+        value = a1_from_denoiser(model, s, beta=args.beta, model_level=config.get("level_kind", "ell"))
     else:
         value = a1_from_sedd_sampler(
             model,
@@ -55,7 +55,7 @@ def main() -> None:
             beta0=args.beta,
             steps=args.steps,
             sweeps_per_step=args.sweeps_per_step,
-            model_level=config.get("level_kind", "beta"),
+            model_level=config.get("level_kind", "ell"),
         )
     print(f"A1(beta={args.beta}) = {value:.8f}")
 

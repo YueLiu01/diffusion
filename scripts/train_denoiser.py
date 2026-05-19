@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--hidden-channels", type=int, default=64)
-    parser.add_argument("--level-kind", choices=["beta", "tau"], default="beta")
+    parser.add_argument("--level-kind", choices=["beta", "tau", "ell"], default="ell")
     parser.add_argument("--level-min", type=float, default=0.01)
     parser.add_argument("--level-max", type=float, default=2.5)
     parser.add_argument(

@@ -7,28 +7,22 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from .noise import beta_to_tau, corrupt_spins, random_cyclic_shift, random_global_flip, sedd_target_ratio
+from .noise import corrupt_spins, level_to_tau, random_cyclic_shift, random_global_flip, sedd_target_ratio
 
 
 def sedd_loss(
     model: nn.Module,
     z: torch.Tensor,
     level: torch.Tensor,
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     eps: float = 1e-6,
     logu_clip: float | None = 20.0,
     augment_z2: bool = True,
     augment_shift: bool = True,
 ) -> torch.Tensor:
     """Compute the score-entropy loss for a clean snapshot minibatch."""
-    if level_kind == "beta":
-        tau = beta_to_tau(level)
-        model_level = level
-    elif level_kind == "tau":
-        tau = level
-        model_level = level
-    else:
-        raise ValueError("level_kind must be 'beta' or 'tau'")
+    tau = level_to_tau(level, level_kind)
+    model_level = level
     x = corrupt_spins(z, tau)
     if augment_z2:
         z, x = random_global_flip(z, x)
@@ -45,12 +39,12 @@ def denoiser_loss(
     model: nn.Module,
     z: torch.Tensor,
     level: torch.Tensor,
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     augment_z2: bool = True,
     augment_shift: bool = True,
 ) -> torch.Tensor:
     """MSE loss for f_phi(x, level) ~= E[z | x, level]."""
-    tau = beta_to_tau(level) if level_kind == "beta" else level
+    tau = level_to_tau(level, level_kind)
     x = corrupt_spins(z, tau)
     if augment_z2:
         z, x = random_global_flip(z, x)
@@ -65,7 +59,7 @@ def objective_loss(
     z: torch.Tensor,
     level: torch.Tensor,
     objective: str = "sedd",
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     augment_z2: bool = True,
     augment_shift: bool = True,
 ) -> torch.Tensor:
@@ -97,7 +91,7 @@ def evaluate_loss(
     level_sampler: Callable[[int, torch.device | None], torch.Tensor],
     device: torch.device,
     objective: str = "sedd",
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     max_batches: int | None = None,
 ) -> float:
     """Evaluate stochastic validation loss on held-out clean snapshots."""
@@ -134,7 +128,7 @@ def train_epochs(
     epochs: int,
     device: torch.device,
     objective: str = "sedd",
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     grad_clip: float = 1.0,
     log_every: int = 50,
 ) -> list[float]:
@@ -169,7 +163,7 @@ def train_epochs_with_validation(
     epochs: int,
     device: torch.device,
     objective: str = "sedd",
-    level_kind: str = "beta",
+    level_kind: str = "ell",
     grad_clip: float = 1.0,
     val_batches: int | None = None,
 ) -> list[dict[str, float | int]]:

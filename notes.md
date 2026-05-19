@@ -140,36 +140,36 @@ The network output has shape $[B,L]$, one log-ratio per site.
 
 ## 4. Correct network input
 
-The score network input is
+The recommended score-network input is
 
 ```math
 \boxed{
-(x,\tau)
+(x,\ell)
 }
 ```
 
-or equivalently
+where
 
 ```math
-\boxed{
-(x,\beta)
-}
+\ell=-\frac12\log\tau.
 ```
 
-where $x$ is the current noisy/corrupted spin configuration.
+Equivalently, one can condition on another monotone noise coordinate such as $(x,\tau)$ or $(x,\beta)$, but using $\ell$ is numerically convenient because it ranges from $0$ at $\tau=1$ to $\infty$ at $\tau=0$.
+
+Here $x$ is the current noisy/corrupted spin configuration.
 
 The clean snapshot $z$ is **not** an input to the neural network.
 
 Correct:
 
 ```python
-u = model(x, tau)      # or model(x, beta)
+u = model(x, ell)
 ```
 
 Incorrect:
 
 ```python
-u = model(z, x, tau)   # wrong: leaks the clean sample
+u = model(z, x, ell)   # wrong: leaks the clean sample
 ```
 
 The clean snapshot $z$ appears only in the training loss because it is needed to construct the denoising target.
@@ -370,21 +370,21 @@ At each optimization step:
 import torch
 
 
-def training_step(model, optimizer, z, beta_sampler, eps=1e-6, logu_clip=None):
+def training_step(model, optimizer, z, ell_sampler, eps=1e-6, logu_clip=None):
     """
     z: clean snapshots, shape [B, L], values in {-1, +1}
-    model input: (x, beta) or (x, tau)
+    model input: (x, ell)
     model output: u, shape [B, L], log probability ratios
     """
     B, L = z.shape
     device = z.device
 
-    # 1. Sample measurement/noise strength.
-    beta = beta_sampler(B).to(device)          # shape [B, 1] or [B]
-    if beta.ndim == 1:
-        beta = beta[:, None]
+    # 1. Sample diffusion time.
+    ell = ell_sampler(B).to(device)            # shape [B, 1] or [B]
+    if ell.ndim == 1:
+        ell = ell[:, None]
 
-    tau = torch.tanh(2.0 * beta)               # shape [B, 1]
+    tau = torch.exp(-2.0 * ell)                # shape [B, 1]
 
     # 2. Generate noisy configuration x from clean z.
     p_same = (1.0 + tau) / 2.0                 # shape [B, 1]
@@ -403,7 +403,7 @@ def training_step(model, optimizer, z, beta_sampler, eps=1e-6, logu_clip=None):
     a = numerator / denominator
 
     # 4. Score network input does NOT include z.
-    u = model(x, beta)                         # or model(x, tau)
+    u = model(x, ell)
 
     if logu_clip is not None:
         u = torch.clamp(u, -logu_clip, logu_clip)
@@ -422,13 +422,13 @@ def training_step(model, optimizer, z, beta_sampler, eps=1e-6, logu_clip=None):
 The core implementation rule is:
 
 ```python
-u = model(x, beta)
+u = model(x, ell)
 ```
 
 not
 
 ```python
-u = model(z, x, beta)
+u = model(z, x, ell)
 ```
 
 ---
@@ -486,10 +486,10 @@ x_{\tau=1}\approx z.
 The score network is evaluated as
 
 ```math
-u_\theta(x,\tau),
+u_\theta(x,\ell),
 ```
 
-where $x$ is the current reverse-diffusion state.
+where $x$ is the current reverse-diffusion state and $\ell=-\frac12\log\tau$.
 
 ---
 
@@ -685,7 +685,7 @@ This is often useful when training across a wide noise range because it samples 
 The model should implement
 
 ```math
-u_\theta(x,\tau):\{\pm1\}^L\times\mathbb{R}\to\mathbb{R}^L.
+u_\theta(x,\ell):\{\pm1\}^L\times\mathbb{R}\to\mathbb{R}^L.
 ```
 
 Recommended inputs per site:
@@ -694,7 +694,7 @@ Recommended inputs per site:
 x_i
 ```
 
-plus a global noise embedding of $\tau$, $\beta$, or $\log\tau$.
+plus a global noise embedding of $\ell$.
 
 Possible architectures:
 
@@ -755,13 +755,13 @@ x_i\to x_{i+\ell}.
 Confirm that the model call has the form
 
 ```python
-u = model(x, tau)
+u = model(x, ell)
 ```
 
 and not
 
 ```python
-u = model(z, x, tau)
+u = model(z, x, ell)
 ```
 
 The clean $z$ may appear only in the loss construction.
@@ -812,13 +812,13 @@ At $\tau\to1$, the noisy configuration nearly equals $z$. The posterior should c
 Wrong:
 
 ```python
-u = model(z, x, tau)
+u = model(z, x, ell)
 ```
 
 Correct:
 
 ```python
-u = model(x, tau)
+u = model(x, ell)
 ```
 
 ### Mistake 2: Sampling $x$ uniformly at all noise levels
@@ -860,7 +860,7 @@ use independent posterior batches or bias correction when estimating the square.
    a_i=(1-\tau x_i z_i)/(1+\tau x_i z_i).
    ```
 
-5. Feed only $(x,\tau)$ or $(x,\beta)$ to the model.
+5. Feed only $(x,\ell)$ to the model.
 6. Output $u_{\theta,i}$ for all sites.
 7. Train with
 
@@ -888,7 +888,7 @@ The score network sees only the corrupted data and the noise level:
 
 ```math
 \boxed{
-u_\theta = u_\theta(x,\tau).
+u_\theta = u_\theta(x,\ell).
 }
 ```
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from .noise import beta_to_tau, corrupt_spins
+from .noise import beta_to_tau, corrupt_spins, tau_to_beta, tau_to_ell
 from .sampling import posterior_mean_from_sampler
 
 
@@ -22,14 +22,14 @@ def a1_from_denoiser(
     s: torch.Tensor,
     beta: float | None = None,
     tau: float | None = None,
-    model_level: str = "beta",
+    model_level: str = "ell",
 ) -> float:
     """Estimate L^{-1} sum_i E_s[m_i(s)^2] from a direct posterior-mean model."""
     if (beta is None) == (tau is None):
         raise ValueError("Provide exactly one of beta or tau")
     if model_level == "beta":
         if beta is None:
-            beta_tensor = 0.5 * torch.atanh(torch.tensor(float(tau)).clamp(max=1.0 - 1e-6))
+            beta_tensor = tau_to_beta(torch.tensor(float(tau)))
             level_value = float(beta_tensor.item())
         else:
             level_value = float(beta)
@@ -39,8 +39,14 @@ def a1_from_denoiser(
             level_value = float(tau_tensor.item())
         else:
             level_value = float(tau)
+    elif model_level == "ell":
+        if tau is None:
+            tau_tensor = torch.tanh(torch.tensor(2.0 * float(beta)))
+        else:
+            tau_tensor = torch.tensor(float(tau))
+        level_value = float(tau_to_ell(tau_tensor).item())
     else:
-        raise ValueError("model_level must be 'beta' or 'tau'")
+        raise ValueError("model_level must be 'beta', 'tau', or 'ell'")
     level = torch.full((s.shape[0], 1), level_value, device=s.device, dtype=s.dtype)
     means = model(s, level)
     return float(torch.mean(means**2).cpu())

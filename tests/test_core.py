@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from sedd.models import DilatedConvNet
-from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
+from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, level_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
 from sedd.training import denoiser_loss, sedd_loss, train_epochs_with_validation
 from sedd.validation import empirical_noisy_log_ratios, empirical_posterior_mean
 
@@ -45,6 +45,10 @@ def test_ell_sampler_round_trip_and_output_kind():
     levels = sampler(16)
     assert levels.shape == (16, 1)
     assert torch.all((levels > 0.0) & (levels < 1.0))
+    ell_sampler = make_level_sampler("ell", 0.01, 2.0, output_kind="ell")
+    ell = ell_sampler(16)
+    assert torch.all((ell >= 0.01) & (ell <= 2.0))
+    assert torch.allclose(level_to_tau(ell, "ell"), ell_to_tau(ell))
 
 
 def test_empirical_exact_validation_helpers():

@@ -1,6 +1,6 @@
 # Diffusion2 SEDD implementation
 
-This repository implements the SEDD formulation in `notes.md` for diagonal weak-measurement protocols. Clean snapshots `z` are loaded from `snapshots/*.npy`, converted to spins in `{-1,+1}`, corrupted on the fly as `x ~ q_tau(x|z)`, and used to train models that take only `(x, beta)` or `(x, tau)` as input.
+This repository implements the SEDD formulation in `notes.md` for diagonal weak-measurement protocols. Clean snapshots `z` are loaded from `snapshots/*.npy`, converted to spins in `{-1,+1}`, corrupted on the fly as `x ~ q_tau(x|z)`, and used to train models that take only `(x, ell)` as input by default.
 
 ## Train
 
@@ -16,7 +16,7 @@ python scripts/train_lengths.py \
   --snapshots-dir snapshots \
   --output-dir runs/length_sweep \
   --epochs 20 \
-  --level-kind beta \
+  --level-kind ell \
   --sample-kind ell \
   --sample-min 0.01 \
   --sample-max 2.0
@@ -26,18 +26,18 @@ This writes metrics to `runs/length_sweep/metrics/`, checkpoints to `runs/length
 
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
 
-By default, `--level-kind beta` samples beta uniformly in `[--level-min, --level-max]`, and `--level-kind tau` samples tau uniformly. To sample the noise scale uniformly in diffusion time `ell = -0.5 * log(tau)`,
+By default, `--level-kind ell` samples diffusion time uniformly in `[--level-min, --level-max]` and feeds `ell` directly to the network. To be explicit:
 
 ```bash
 python scripts/train_sedd.py \
   --snapshots snapshots/Ising_snapshotsL100.npy \
-  --level-kind beta \
+  --level-kind ell \
   --sample-kind ell \
   --sample-min 0.01 \
   --sample-max 2.0
 ```
 
-Equivalently, `ell = -0.5 * log(tanh(2 * beta))`. The model still receives beta because `--level-kind beta`; only the training distribution over noise levels changes. Use `sample-min > 0` to avoid the singular `tau = 1` endpoint.
+Equivalently, `ell = -0.5 * log(tau) = -0.5 * log(tanh(2 * beta))`. With `--level-kind ell`, the model call is `model(x, ell)`. Use `sample-min > 0` to avoid the singular `tau = 1` endpoint.
 
 Some reference values for this convention:
 
@@ -72,10 +72,10 @@ from sedd.validation import empirical_posterior_mean, empirical_noisy_log_ratios
 
 ## Implementation rule
 
-The score network is always called as:
+With the default training settings, the score network is called as:
 
 ```python
-u = model(x, beta)  # or model(x, tau)
+u = model(x, ell)
 ```
 
 The clean snapshot `z` appears only in the target ratio:
