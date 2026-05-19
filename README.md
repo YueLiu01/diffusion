@@ -1,0 +1,44 @@
+# Diffusion2 SEDD implementation
+
+This repository implements the SEDD formulation in `notes.md` for diagonal weak-measurement protocols. Clean snapshots `z` are loaded from `snapshots/*.npy`, converted to spins in `{-1,+1}`, corrupted on the fly as `x ~ q_tau(x|z)`, and used to train models that take only `(x, beta)` or `(x, tau)` as input.
+
+## Train
+
+```bash
+python scripts/train_sedd.py --snapshots snapshots/Ising_snapshotsL100.npy --epochs 20 --output checkpoints/sedd_L100.pt
+python scripts/train_denoiser.py --snapshots snapshots/Ising_snapshotsL100.npy --epochs 20 --output checkpoints/denoiser_L100.pt
+```
+
+The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
+
+## Estimate one-point nonlinear observable
+
+```bash
+python scripts/estimate_a1.py --kind denoiser --checkpoint checkpoints/denoiser_L100.pt --snapshots snapshots/Ising_snapshotsL100.npy --beta 0.5
+python scripts/estimate_a1.py --kind sedd --checkpoint checkpoints/sedd_L100.pt --snapshots snapshots/Ising_snapshotsL100.npy --beta 0.5
+```
+
+The SEDD estimator uses two independent posterior sample batches to avoid directly squaring a noisy Monte Carlo posterior mean.
+
+## Small-chain validation
+
+For small systems, `sedd.validation` can compute posterior means and noisy-distribution log ratios exactly under the empirical snapshot prior:
+
+```python
+from sedd.validation import empirical_posterior_mean, empirical_noisy_log_ratios
+```
+
+## Implementation rule
+
+The score network is always called as:
+
+```python
+u = model(x, beta)  # or model(x, tau)
+```
+
+The clean snapshot `z` appears only in the target ratio:
+
+```python
+a = (1 - tau * x * z) / (1 + tau * x * z)
+loss = (exp(u) - a * u).mean()
+```
