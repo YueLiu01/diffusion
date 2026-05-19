@@ -9,6 +9,21 @@ python scripts/train_sedd.py --snapshots snapshots/Ising_snapshotsL100.npy --epo
 python scripts/train_denoiser.py --snapshots snapshots/Ising_snapshotsL100.npy --epochs 20 --output checkpoints/denoiser_L100.pt
 ```
 
+To train the default length sweep `L = 20, 40, 60, 80, 100`, save per-epoch training/validation losses, plot the curves, and write one checkpoint per length:
+
+```bash
+python scripts/train_lengths.py \
+  --snapshots-dir snapshots \
+  --output-dir runs/length_sweep \
+  --epochs 20 \
+  --level-kind beta \
+  --sample-kind ell \
+  --sample-min 0.01 \
+  --sample-max 2.0
+```
+
+This writes metrics to `runs/length_sweep/metrics/`, checkpoints to `runs/length_sweep/checkpoints/`, and `runs/length_sweep/plots/loss_curves.png`.
+
 The SEDD model outputs per-site log ratios `u_i(x, level) ~= log p_tau(F_i x) / p_tau(x)`. The direct denoiser baseline outputs posterior means `f_i(x, level) ~= E[z_i | x, level]`.
 
 By default, `--level-kind beta` samples beta uniformly in `[--level-min, --level-max]`, and `--level-kind tau` samples tau uniformly. To sample the noise scale uniformly in diffusion time `ell = -0.5 * log(tau)`,

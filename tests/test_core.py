@@ -1,8 +1,9 @@
 import torch
+from torch.utils.data import DataLoader
 
 from sedd.models import DilatedConvNet
 from sedd.noise import beta_to_tau, corrupt_spins, ell_to_tau, make_level_sampler, sedd_target_ratio, tau_to_ell
-from sedd.training import denoiser_loss, sedd_loss
+from sedd.training import denoiser_loss, sedd_loss, train_epochs_with_validation
 from sedd.validation import empirical_noisy_log_ratios, empirical_posterior_mean
 
 
@@ -53,3 +54,31 @@ def test_empirical_exact_validation_helpers():
     assert torch.allclose(mean, torch.zeros_like(mean), atol=1e-6)
     log_ratios = empirical_noisy_log_ratios(clean, x, tau=0.0)
     assert torch.allclose(log_ratios, torch.zeros_like(log_ratios), atol=1e-6)
+
+
+def test_train_epochs_with_validation_returns_epoch_metrics():
+    torch.manual_seed(0)
+    data = torch.sign(torch.randn(8, 6))
+    train_loader = DataLoader(data[:6], batch_size=2)
+    val_loader = DataLoader(data[6:], batch_size=2)
+    model = DilatedConvNet(length=6, hidden_channels=8, level_embedding_dim=8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    def sampler(batch_size, device=None):
+        return torch.full((batch_size, 1), 0.2, device=device)
+
+    history = train_epochs_with_validation(
+        model,
+        train_loader,
+        val_loader,
+        optimizer,
+        sampler,
+        epochs=1,
+        device=torch.device("cpu"),
+        objective="sedd",
+    )
+    assert len(history) == 1
+    assert history[0]["epoch"] == 1
+    assert history[0]["train_steps"] == 3
+    assert torch.isfinite(torch.tensor(history[0]["train_loss"]))
+    assert torch.isfinite(torch.tensor(history[0]["val_loss"]))

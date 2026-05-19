@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "SEDD utilities for measurement-altered criticality experiments"
 requires-python = ">=3.10"
 dependencies = [
+    "matplotlib",
     "numpy",
     "torch",
 ]
